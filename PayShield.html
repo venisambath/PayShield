@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PayShield - UPI Payment Verification</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+  .header{background:#102a43;color:white;padding:22px 18px;text-align:center}
+  .header h1{margin:0 0 6px;font-size:30px}
+  .header p{margin:0;opacity:.85}
+  .container{max-width:850px;margin:28px auto;padding:0 16px}
+  .card{background:white;border-radius:18px;padding:24px;margin-bottom:20px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+  h2{margin-top:0}
+  label{display:block;font-weight:bold;margin:14px 0 7px}
+  input,select{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:10px;font-size:15px}
+  button{border:0;border-radius:10px;padding:13px 18px;font-weight:bold;cursor:pointer}
+  .primary{background:#1677ff;color:white;margin-top:16px}
+  .secondary{background:#e8eef5;color:#172033;margin-top:10px}
+  .result{display:none;text-align:center;padding:20px;border-radius:14px;margin-top:20px}
+  .genuine{background:#e8f8ee;border:1px solid #8bd3a7}
+  .suspicious{background:#fff5df;border:1px solid #f0c36a}
+  .fake{background:#ffe9e9;border:1px solid #e79a9a}
+  .badge{display:inline-block;padding:7px 14px;border-radius:20px;font-weight:bold;margin-bottom:8px}
+  .note{font-size:13px;color:#5b6777;line-height:1.5}
+  .history{width:100%;border-collapse:collapse;margin-top:10px}
+  .history th,.history td{padding:10px;border-bottom:1px solid #e5eaf0;text-align:left;font-size:14px}
+  .footer{text-align:center;color:#687587;font-size:13px;padding:20px}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>🛡️ PayShield</h1>
+  <p>UPI Payment Verification System — Prototype</p>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>Verify a Payment</h2>
+    <p class="note">
+      Enter the transaction details shown by the customer. This demo simulates
+      verification logic for a hackathon prototype; it does not connect to a real bank or UPI network.
+    </p>
+
+    <label for="txn">Transaction / UPI Reference ID</label>
+    <input id="txn" placeholder="Example: 123456789012">
+
+    <label for="amount">Amount (₹)</label>
+    <input id="amount" type="number" min="1" placeholder="Example: 500">
+
+    <label for="status">Displayed Payment Status</label>
+    <select id="status">
+      <option value="success">Payment Successful</option>
+      <option value="pending">Payment Pending</option>
+      <option value="failed">Payment Failed</option>
+    </select>
+
+    <button class="primary" onclick="verifyPayment()">Verify Payment</button>
+    <button class="secondary" onclick="clearForm()">Clear</button>
+
+    <div id="result" class="result"></div>
+  </section>
+
+  <section class="card">
+    <h2>Recent Verification History</h2>
+    <table class="history">
+      <thead>
+        <tr><th>Reference ID</th><th>Amount</th><th>Result</th></tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="3" class="note">No verification records yet.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>How the Prototype Works</h2>
+    <p class="note">
+      The demo checks whether required transaction details are present and compares
+      the selected payment status with simple prototype rules. A real production
+      system would require secure backend verification, bank/UPI confirmation,
+      a database, authentication, and a properly validated fraud-detection model.
+    </p>
+  </section>
+</main>
+
+<div class="footer">PayShield • TECH NOVA • Hackathon Prototype</div>
+
+<script>
+function getHistory(){
+  return JSON.parse(localStorage.getItem("payshieldHistory") || "[]");
+}
+
+function saveHistory(item){
+  const history = getHistory();
+  history.unshift(item);
+  localStorage.setItem("payshieldHistory", JSON.stringify(history.slice(0,10)));
+  renderHistory();
+}
+
+function renderHistory(){
+  const body = document.getElementById("historyBody");
+  const history = getHistory();
+
+  if(!history.length){
+    body.innerHTML = '<tr><td colspan="3" class="note">No verification records yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = history.map(x =>
+    `<tr><td>${escapeHtml(x.txn)}</td><td>₹${escapeHtml(x.amount)}</td><td>${escapeHtml(x.result)}</td></tr>`
+  ).join("");
+}
+
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+
+function verifyPayment(){
+  const txn = document.getElementById("txn").value.trim();
+  const amount = Number(document.getElementById("amount").value);
+  const status = document.getElementById("status").value;
+  const result = document.getElementById("result");
+
+  if(!txn || !amount || amount <= 0){
+    result.style.display = "block";
+    result.className = "result suspicious";
+    result.innerHTML = '<div class="badge">⚠️ INCOMPLETE</div><br>Please enter a valid reference ID and amount.';
+    return;
+  }
+
+  let label, message, cls;
+
+  if(status === "success" && txn.length >= 8){
+    label = "GENUINE";
+    message = "The entered details pass this prototype's basic verification rules.";
+    cls = "genuine";
+  } else if(status === "pending"){
+    label = "SUSPICIOUS";
+    message = "Payment is still pending, so the vendor should wait for confirmed payment.";
+    cls = "suspicious";
+  } else {
+    label = "FAKE / FAILED";
+    message = "The selected status does not indicate a successful payment.";
+    cls = "fake";
+  }
+
+  result.style.display = "block";
+  result.className = "result " + cls;
+  result.innerHTML = `<div class="badge">${label}</div><br>${message}`;
+
+  saveHistory({txn, amount, result: label});
+}
+
+function clearForm(){
+  document.getElementById("txn").value = "";
+  document.getElementById("amount").value = "";
+  document.getElementById("status").value = "success";
+  document.getElementById("result").style.display = "none";
+}
+
+renderHistory();
+</script>
+</body>
+</html>
