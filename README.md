@@ -64,7 +64,6 @@ Team Name: TECH NOVA
 📚 Project Domain
 
 FinTech – Financial Technology
-uni
 ## 🌐 Live Demo
 
 [Click here to view PayShield](https://venisambath.github.io/PayShield/)
